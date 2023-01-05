@@ -41,6 +41,7 @@ mod fuzzing;
 mod bresenham_3d;
 mod walk_voxels;
 mod bresenham_circle;
+mod midpoint_ellipse;
 
 pub use bresenham::*;
 pub use midpoint::*;
