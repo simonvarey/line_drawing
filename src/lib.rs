@@ -15,6 +15,7 @@
 //! [Bresenham's line algorithm]: https://en.wikipedia.org/wiki/Bresenham's_line_algorithm
 //! [`Bresenham3d`]: struct.Bresenham3d.html
 //! [`BresenhamCircle`]: struct.BresenhamCircle.html
+//! [`BresenhamEllipse`]: struct.BresenhamEllipse.html
 //! [`Midpoint`]: struct.Midpoint.html
 //! [mid-point line algorithm]: http://www.mat.univie.ac.at/~kriegl/Skripten/CG/node25.html
 //! [`WalkGrid`]: struct.WalkGrid.html
