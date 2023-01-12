@@ -1,8 +1,6 @@
-use std::fmt::Debug;
-
 use {Point, SignedNum};
 
-/// An implementation of [Bresenham's circle algorithm].
+/// An implementation of [Bresenham's ellipse algorithm].
 ///
 /// This uses four quadrants, so calling `next()` will return a point for the first quadrant,
 /// then the second, third, fourth and then back to first.
@@ -11,20 +9,20 @@ use {Point, SignedNum};
 ///
 /// ```
 /// extern crate line_drawing;
-/// use line_drawing::BresenhamCircle;
+/// use line_drawing::BresenhamEllipse;
 ///
 /// fn main() {
-///     for (x, y) in BresenhamCircle::new(0, 0, 1) {
+///     for (x, y) in BresenhamEllipse::new(5, 5, 2, 3) {
 ///         print!("({}, {}), ", x, y);
 ///     }
 /// }
 /// ```
 ///
 /// ```text
-/// (1, 0), (0, 1), (-1, 0), (0, -1),
+/// (7, 5), (3, 5), (3, 5), (7, 5), (7, 6), (3, 6), (3, 4), (7, 4), (6, 7), (4, 7), (4, 3), (6, 3), (5, 8), (5, 8), (5, 2), (5, 2), (6, 8), (4, 8), (4, 2), (6, 2),
 /// ```
 ///
-/// [Bresenham's circle algorithm]: https://dai.fmph.uniba.sk/upload/0/01/Ellipse.pdf
+/// [Bresenham's ellipse algorithm]: https://dai.fmph.uniba.sk/upload/0/01/Ellipse.pdf
 pub struct BresenhamEllipse<T> {
     x: T,
     y: T,
@@ -36,17 +34,18 @@ pub struct BresenhamEllipse<T> {
     delta_y: T,
     error: T,
     quadrant: u8,
-    twoASquare: T,
-    twoBSquare: T,
-    stoppingX: T,
-    stoppingY: T,
-    firstRegion: bool
+    radius_x_squared_doubled: T,
+    radius_y_squared_doubled: T,
+    end_x: T,
+    end_y: T,
+    first_region: bool
 }
 
 impl<T: SignedNum> BresenhamEllipse<T> {
     #[inline]
     pub fn new(center_x: T, center_y: T, radius_x: T, radius_y: T) -> Self {
-        let twoBSquare = T::cast(2) * radius_y * radius_y;
+        // Variables initialized for first region, where tangent line slope greater than -1
+        let radius_y_squared_doubled = T::cast(2) * radius_y * radius_y;
 
         Self {
             center_x,
@@ -54,26 +53,28 @@ impl<T: SignedNum> BresenhamEllipse<T> {
             radius_x,
             radius_y,
             x: radius_x,
-            y: T::cast(0),
-            delta_x: radius_y * radius_y * (T::cast(1) - T::cast(2) * radius_x),
+            y: T::zero(),
+            delta_x: radius_y * radius_y * (T::one() - T::cast(2) * radius_x),
             delta_y: radius_x * radius_x,
-            error: T::cast(0),
-            twoASquare: T::cast(2) * radius_x * radius_x,
-            twoBSquare: twoBSquare,
-            stoppingX: twoBSquare * radius_x,
-            stoppingY: T::cast(0),
+            error: T::zero(),
+            radius_x_squared_doubled: T::cast(2) * radius_x * radius_x,
+            radius_y_squared_doubled,
+            end_x: radius_y_squared_doubled * radius_x,
+            end_y: T::zero(),
             quadrant: 1,
-            firstRegion: true
+            first_region: true
         }
     }
 }
 
-impl<T: SignedNum + Debug> Iterator for BresenhamEllipse<T> {
+impl<T: SignedNum> Iterator for BresenhamEllipse<T> {
     type Item = Point<T>;
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        if self.firstRegion && self.stoppingX >= self.stoppingY {
+
+        // First region: tangent line slope greater than -1
+        if self.first_region && self.end_x >= self.end_y {
             let point = match self.quadrant {
                 1 => (self.center_x + self.x, self.center_y + self.y),
                 2 => (self.center_x - self.x, self.center_y + self.y),
@@ -85,34 +86,36 @@ impl<T: SignedNum + Debug> Iterator for BresenhamEllipse<T> {
             // Update the variables after each set of quadrants
             if self.quadrant == 4 {
                 self.y += T::one();
-                self.stoppingY += self.twoASquare;
+                self.end_y += self.radius_x_squared_doubled;
                 self.error += self.delta_y;
-                self.delta_y += self.twoASquare;
+                self.delta_y += self.radius_x_squared_doubled;
 
-                if self.error * T::cast(2) + self.delta_x > T::cast(0) { //TODO: T::zero() ??
+                if self.error * T::cast(2) + self.delta_x > T::zero() {
                     self.x -= T::one();
-                    self.stoppingX -= self.twoBSquare;
+                    self.end_x -= self.radius_y_squared_doubled;
                     self.error += self.delta_x;
-                    self.delta_x += self.twoBSquare;
+                    self.delta_x += self.radius_y_squared_doubled;
                 }
             }
 
             self.quadrant = self.quadrant % 4 + 1;
 
             Some(point)
-        } else if self.stoppingX <= self.stoppingY {
-            if self.firstRegion {
-                self.firstRegion = false;
+        } else if self.end_x <= self.end_y {
+            // Update variables a single time for second region, where tangent line slope less than -1
+            if self.first_region {
+                self.first_region = false;
     
-                self.x = T::cast(0);
+                self.x = T::zero();
                 self.y = self.radius_y;
                 self.delta_x = self.radius_y * self.radius_y;
-                self.delta_y = self.radius_x * self.radius_x * (T::cast(1) - T::cast(2) * self.radius_y);
-                self.error = T::cast(0);
-                self.stoppingX = T::cast(0);
-                self.stoppingY = self.twoASquare * self.radius_y;
+                self.delta_y = self.radius_x * self.radius_x * (T::one() - T::cast(2) * self.radius_y);
+                self.error = T::zero();
+                self.end_x = T::zero();
+                self.end_y = self.radius_x_squared_doubled * self.radius_y;
             }
 
+            // Second region: tangent line slope less than -1
             let point = match self.quadrant {
                 1 => (self.center_x + self.x, self.center_y + self.y),
                 2 => (self.center_x - self.x, self.center_y + self.y),
@@ -124,15 +127,15 @@ impl<T: SignedNum + Debug> Iterator for BresenhamEllipse<T> {
             // Update the variables after each set of quadrants
             if self.quadrant == 4 {
                 self.x += T::one();
-                self.stoppingX += self.twoBSquare;
+                self.end_x += self.radius_y_squared_doubled;
                 self.error += self.delta_x;
-                self.delta_x += self.twoBSquare;
+                self.delta_x += self.radius_y_squared_doubled;
 
-                if self.error * T::cast(2) + self.delta_y > T::cast(0) { //TODO: T::zero() ??
+                if self.error * T::cast(2) + self.delta_y > T::zero() {
                     self.y -= T::one();
-                    self.stoppingY -= self.twoASquare;
+                    self.end_y -= self.radius_x_squared_doubled;
                     self.error += self.delta_y;
-                    self.delta_y += self.twoASquare;
+                    self.delta_y += self.radius_x_squared_doubled;
                 }
             }
 
@@ -149,6 +152,8 @@ impl<T: SignedNum + Debug> Iterator for BresenhamEllipse<T> {
 fn tests() {
     let ellipse = |a, b, c, d| 
         BresenhamEllipse::new(a, b, c, d).collect::<Vec<_>>();
+
+    println!("{:?}", ellipse(5, 5, 2, 3));
 
     let mut be = ellipse(50, 50, 10, 15);
     be.sort();
