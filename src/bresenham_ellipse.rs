@@ -1,3 +1,5 @@
+// Created by Simon Varey: github.com/simonvarey. Released under the MIT license.
+
 use {Point, SignedNum};
 use steps::Steps;
 
