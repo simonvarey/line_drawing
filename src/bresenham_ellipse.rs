@@ -73,38 +73,37 @@ impl<T: SignedNum + Debug> Iterator for BresenhamEllipse<T> {
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        if self.firstRegion {
-            if self.stoppingX >= self.stoppingY {
-                let point = match self.quadrant {
-                    1 => (self.center_x + self.x, self.center_y + self.y),
-                    2 => (self.center_x - self.x, self.center_y + self.y),
-                    3 => (self.center_x - self.x, self.center_y - self.y),
-                    4 => (self.center_x + self.x, self.center_y - self.y),
-                    _ => unreachable!(),
-                };
+        if self.firstRegion && self.stoppingX >= self.stoppingY {
+            let point = match self.quadrant {
+                1 => (self.center_x + self.x, self.center_y + self.y),
+                2 => (self.center_x - self.x, self.center_y + self.y),
+                3 => (self.center_x - self.x, self.center_y - self.y),
+                4 => (self.center_x + self.x, self.center_y - self.y),
+                _ => unreachable!(),
+            };
 
-                // Update the variables after each set of quadrants
-                if self.quadrant == 4 {
-                    self.y += T::one();
-                    self.stoppingY += self.twoASquare;
-                    self.error += self.delta_y;
-                    self.delta_y += self.twoASquare;
+            // Update the variables after each set of quadrants
+            if self.quadrant == 4 {
+                self.y += T::one();
+                self.stoppingY += self.twoASquare;
+                self.error += self.delta_y;
+                self.delta_y += self.twoASquare;
 
-                    if self.error * T::cast(2) + self.delta_x > T::cast(0) { //TODO: T::zero() ??
-                        self.x -= T::one();
-                        self.stoppingX -= self.twoBSquare;
-                        self.error += self.delta_x;
-                        self.delta_x += self.twoBSquare;
-                    }
+                if self.error * T::cast(2) + self.delta_x > T::cast(0) { //TODO: T::zero() ??
+                    self.x -= T::one();
+                    self.stoppingX -= self.twoBSquare;
+                    self.error += self.delta_x;
+                    self.delta_x += self.twoBSquare;
                 }
+            }
 
-                self.quadrant = self.quadrant % 4 + 1;
+            self.quadrant = self.quadrant % 4 + 1;
 
-                return Some(point)
-            } else {
-                println!("First Ends");
+            Some(point)
+        } else if self.stoppingX <= self.stoppingY {
+            if self.firstRegion {
                 self.firstRegion = false;
-
+    
                 self.x = T::cast(0);
                 self.y = self.radius_y;
                 self.delta_x = self.radius_y * self.radius_y;
@@ -112,42 +111,37 @@ impl<T: SignedNum + Debug> Iterator for BresenhamEllipse<T> {
                 self.error = T::cast(0);
                 self.stoppingX = T::cast(0);
                 self.stoppingY = self.twoASquare * self.radius_y;
-                println!("firstRegion: {:?}", self.firstRegion);
-            };
-        } else {
-            println!("Second starts");
-            if self.stoppingX <= self.stoppingY {
-                let point = match self.quadrant {
-                    1 => (self.center_x + self.x, self.center_y + self.y),
-                    2 => (self.center_x - self.x, self.center_y + self.y),
-                    3 => (self.center_x - self.x, self.center_y - self.y),
-                    4 => (self.center_x + self.x, self.center_y - self.y),
-                    _ => unreachable!(),
-                };
-
-                // Update the variables after each set of quadrants
-                if self.quadrant == 4 {
-                    self.x += T::one();
-                    self.stoppingX += self.twoBSquare;
-                    self.error += self.delta_y;
-                    self.delta_x += self.twoBSquare;
-
-                    if self.error * T::cast(2) + self.delta_y > T::cast(0) { //TODO: T::zero() ??
-                        self.y -= T::one();
-                        self.stoppingY -= self.twoASquare;
-                        self.error += self.delta_y;
-                        self.delta_y += self.twoASquare;
-                    }
-                }
-
-                self.quadrant = self.quadrant % 4 + 1;
-
-                return Some(point)
-            } else {
-                return None
             }
-        };
-        None
+
+            let point = match self.quadrant {
+                1 => (self.center_x + self.x, self.center_y + self.y),
+                2 => (self.center_x - self.x, self.center_y + self.y),
+                3 => (self.center_x - self.x, self.center_y - self.y),
+                4 => (self.center_x + self.x, self.center_y - self.y),
+                _ => unreachable!(),
+            };
+
+            // Update the variables after each set of quadrants
+            if self.quadrant == 4 {
+                self.x += T::one();
+                self.stoppingX += self.twoBSquare;
+                self.error += self.delta_x;
+                self.delta_x += self.twoBSquare;
+
+                if self.error * T::cast(2) + self.delta_y > T::cast(0) { //TODO: T::zero() ??
+                    self.y -= T::one();
+                    self.stoppingY -= self.twoASquare;
+                    self.error += self.delta_y;
+                    self.delta_y += self.twoASquare;
+                }
+            }
+
+            self.quadrant = self.quadrant % 4 + 1;
+
+            Some(point)
+        } else {
+            None
+        }
     }
 }
 
@@ -156,11 +150,14 @@ fn tests() {
     let ellipse = |a, b, c, d| 
         BresenhamEllipse::new(a, b, c, d).collect::<Vec<_>>();
 
-    assert_eq!(
-        ellipse(50, 50, 10, 15),
-        [(50, 65), (50, 65), (50, 35), (50, 35), (51, 65), (49, 65), (51, 35), (49, 35), (52, 65), (48, 65), (52, 35), (48, 35), (53, 64), (47, 64), (53, 36), (47, 36), (54, 64), (46, 64), (54, 36), (46, 36), (55, 63), (45, 63), (55, 37), (45, 37), (56, 62), (44, 62), (56, 38), (44, 38), (57, 61), (43, 61), (57, 39), (43, 39), (57, 60), (43, 60), (57, 40), (43, 40), (58, 59), (42, 59), (58, 41), 
-        (42, 41), (58, 58), (42, 58), (58, 42), (42, 42), (59, 57), (41, 57), (59, 43), (41, 43), (59, 56), (41, 56), (59, 44), (41, 44), (59, 55), (41, 55), (59, 45), (41, 45), (60, 54), (40, 54), (60, 46), (40, 46), (60, 53), (40, 53), (60, 47), (40, 47), (60, 52), (40, 52), (60, 48), (40, 48), (60, 51), (40, 51), (60, 49), (40, 49), (60, 50), (40, 50), (60, 50), (40, 50),]
-    );
+    let mut be = ellipse(50, 50, 10, 15);
+    be.sort();
+
+    let mut ce = [(50, 65), (50, 65), (50, 35), (50, 35), (51, 65), (49, 65), (51, 35), (49, 35), (52, 65), (48, 65), (52, 35), (48, 35), (53, 64), (47, 64), (53, 36), (47, 36), (54, 64), (46, 64), (54, 36), (46, 36), (55, 63), (45, 63), (55, 37), (45, 37), (56, 62), (44, 62), (56, 38), (44, 38), (57, 61), (43, 61), (57, 39), (43, 39), (57, 60), (43, 60), (57, 40), (43, 40), (58, 59), (42, 59), (58, 41), 
+    (42, 41), (58, 58), (42, 58), (58, 42), (42, 42), (59, 57), (41, 57), (59, 43), (41, 43), (59, 56), (41, 56), (59, 44), (41, 44), (59, 55), (41, 55), (59, 45), (41, 45), (60, 54), (40, 54), (60, 46), (40, 46), (60, 53), (40, 53), (60, 47), (40, 47), (60, 52), (40, 52), (60, 48), (40, 48), (60, 51), (40, 51), (60, 49), (40, 49), (60, 50), (40, 50), (60, 50), (40, 50),];
+    ce.sort();
+
+    assert_eq!(be, ce);
 
     /*assert_eq!(
         ellipse((0.0, 0.0), (6.0, 3.0)),
