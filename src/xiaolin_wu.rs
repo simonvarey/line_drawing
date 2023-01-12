@@ -1,6 +1,6 @@
 use {FloatNum, Point, SignedNum};
 use steps::Steps;
-use core::mem::swap;
+use std::mem::swap;
 
 /// An implementation of [Xiaolin Wu's line algorithm].
 ///

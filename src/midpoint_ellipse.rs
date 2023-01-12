@@ -1,19 +1,16 @@
 use {FloatNum, Point, SignedNum};
-use octant::Octant;
 use steps::Steps;
 
-/// An implementation of the [mid-point line drawing algorithm].
-///
-/// The biggest difference between this algorithm and [`Bresenham`] is that it uses floating-point points.
+/// An implementation of the [mid-point ellipse drawing algorithm].
 ///
 /// Example:
 ///
 /// ```
 /// extern crate line_drawing;
-/// use line_drawing::Midpoint;
+/// use line_drawing::MidpointEllipse;
 ///
 /// fn main() {
-///     for (x, y) in Midpoint::<f32, i8>::new((0.2, 0.02), (2.8, 7.7)) {
+///     for (x, y) in MidpointEllipse::<f32, i8>::new((0.2, 0.02), (2.8, 7.7)) {
 ///         print!("({}, {}), ", x, y);
 ///     }
 /// }
@@ -24,67 +21,36 @@ use steps::Steps;
 /// ```
 ///
 /// [mid-point line drawing algorithm]: http://www.mat.univie.ac.at/~kriegl/Skripten/CG/node25.html
-/// [`Bresenham`]: struct.bresenham.html
-pub struct MidpointEllipse</*I,*/ O> {
+pub struct MidpointEllipse<O> {
     x: O,
     y: O,
     a: O,
     b: O,
-    //center_x: O,
-    //center_y: O,
+    center_x: O,
+    center_y: O,
     d1: O,
     d2: O,
     quadrant: u8,
-    //octant: Octant,
-    //point: Point<O>,
 }
 
-impl</*I: FloatNum, */O: SignedNum> MidpointEllipse<O> {
+impl<O: SignedNum> MidpointEllipse<O> {
     #[inline]
-    pub fn new<I: FloatNum>(radius_x: I, radius_y: I) -> Self {
+    pub fn new<I: FloatNum>(center_x: I, center_y: I, radius_x: I, radius_y: I) -> Self {
 
         let a = O::cast(radius_x.round());
         let b = O::cast(radius_y.round());
 
-        let x = a; 
-        let y = O::cast(0);
-
-        let d1 = (O::cast(2) * a * a) - (O::cast(2) * a * b * b) + (b * b/O::cast(2));
-        let d2 = (a * a/O::cast(2)) - (O::cast(4) * a * b * b) + (O::cast(2) * b * b);
-
         Self {
-            x,
-            y,
+            x: a,
+            y: O::cast(0),
             a,
             b,
-            //center_x,
-            //center_y,
-            d1,
-            d2,
+            center_x: O::cast(center_x.round()),
+            center_y: O::cast(center_y.round()),
+            d1: (O::cast(2) * a * a) - (O::cast(2) * a * b * b) + (b * b/O::cast(2)),
+            d2: (a * a/O::cast(2)) - (O::cast(4) * a * b * b) + (O::cast(2) * b * b),
             quadrant: 1,
         }
-
-        // Get the octant to use
-        //let octant = Octant::new(start, end);
-
-        // Convert the points into the octant versions
-        //let start = octant.to(start);
-        //let end = octant.to(end);
-
-        // Initialise the variables
-
-        /*let a = -(end.1 - start.1);
-        let b = end.0 - start.0;
-        let c = start.0 * end.1 - end.0 * start.1;
-
-        Self {
-            octant,
-            a,
-            b,
-            point: (O::cast(start.0.round()), O::cast(start.1.round())),
-            k: a * (start.0.round() + I::one()) + b * (start.1.round() + I::cast(0.5)) + c,
-            end_x: O::cast(end.0.round()),
-        }*/
     }
 
     #[inline]
@@ -101,10 +67,10 @@ impl<O: SignedNum> Iterator for MidpointEllipse<O> {
         // Region 1
         if self.d2 < O::cast(0) {
             let point = match self.quadrant {
-                1 => (self.x /*+ self.center_x*/, self.y /*+ self.center_y*/),
-                2 => (-self.x /*+ self.center_x*/, self.y /*+ self.center_y*/),
-                3 => (self.x /*+ self.center_x*/, -self.y /*+ self.center_y*/),
-                4 => (-self.x /*+ self.center_x*/, -self.y /*+ self.center_y*/),
+                1 => (self.x + self.center_x, self.y + self.center_y),
+                2 => (-self.x + self.center_x, self.y + self.center_y),
+                3 => (self.x + self.center_x, -self.y + self.center_y),
+                4 => (-self.x + self.center_x, -self.y + self.center_y),
                 _ => unreachable!(),
             };
   
@@ -130,10 +96,10 @@ impl<O: SignedNum> Iterator for MidpointEllipse<O> {
         } else if self.x >= O::cast(0) {
   
             let point = match self.quadrant {
-                1 => (self.x /*+ self.center_x*/, self.y /*+ self.center_y*/),
-                2 => (-self.x /*+ self.center_x*/, self.y /*+ self.center_y*/),
-                3 => (self.x /*+ self.center_x*/, -self.y /*+ self.center_y*/),
-                4 => (-self.x /*+ self.center_x*/, -self.y /*+ self.center_y*/),
+                1 => (self.x + self.center_x, self.y + self.center_y),
+                2 => (-self.x + self.center_x, self.y + self.center_y),
+                3 => (self.x + self.center_x, -self.y + self.center_y),
+                4 => (-self.x + self.center_x, -self.y + self.center_y),
                 _ => unreachable!(),
             };
     
@@ -182,11 +148,13 @@ impl<O: SignedNum> Iterator for MidpointEllipse<O> {
 
 #[test]
 fn tests() {
-    let ellipse = |a, b| MidpointEllipse::new(a, b).collect::<Vec<_>>();
+    let ellipse = |a, b, c, d| 
+        MidpointEllipse::<i32>::new(a, b, c, d).collect::<Vec<_>>();
 
     assert_eq!(
-        ellipse(10.0, 20.0),
-        [(1, 0), (0, 1), (-1, 0), (0, -1),]
+        ellipse(50.0, 50.0, 10.0, 15.0),
+        [(50, 65), (50, 65), (50, 35), (50, 35), (51, 65), (49, 65), (51, 35), (49, 35), (52, 65), (48, 65), (52, 35), (48, 35), (53, 64), (47, 64), (53, 36), (47, 36), (54, 64), (46, 64), (54, 36), (46, 36), (55, 63), (45, 63), (55, 37), (45, 37), (56, 62), (44, 62), (56, 38), (44, 38), (57, 61), (43, 61), (57, 39), (43, 39), (57, 60), (43, 60), (57, 40), (43, 40), (58, 59), (42, 59), (58, 41), 
+        (42, 41), (58, 58), (42, 58), (58, 42), (42, 42), (59, 57), (41, 57), (59, 43), (41, 43), (59, 56), (41, 56), (59, 44), (41, 44), (59, 55), (41, 55), (59, 45), (41, 45), (60, 54), (40, 54), (60, 46), (40, 46), (60, 53), (40, 53), (60, 47), (40, 47), (60, 52), (40, 52), (60, 48), (40, 48), (60, 51), (40, 51), (60, 49), (40, 49), (60, 50), (40, 50), (60, 50), (40, 50),]
     );
 
     /*assert_eq!(

@@ -23,10 +23,10 @@
 //! [Xiaolin Wu's line algorithm]: https://en.wikipedia.org/wiki/Xiaolin_Wu%27s_line_algorithm
 //! [`WalkVoxels`]: struct.WalkVoxels.html
 
-#![cfg_attr(not(test), no_std)]
+//#![cfg_attr(not(test), no_std)]
 
-#[cfg(test)]
-use std as core;
+//#[cfg(test)]
+//use std as core;
 
 extern crate num_traits;
 
@@ -42,6 +42,7 @@ mod bresenham_3d;
 mod walk_voxels;
 mod bresenham_circle;
 mod midpoint_ellipse;
+mod bresenham_ellipse;
 
 pub use bresenham::*;
 pub use midpoint::*;
